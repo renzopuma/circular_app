@@ -1,4 +1,4 @@
 pandas
 numpy
 plotly
-streamlit_gsheets
+git+https://github.com/streamlit/gsheets-connection
