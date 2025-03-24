@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from streamlit_gsheets import GSheetsConnection
 
 st.set_page_config(layout="wide")
 # Treatment
@@ -11,14 +12,46 @@ st.markdown("Circular economy v2")
 
 
 
+
+
+
+coef_path=[st.secrets['coef_path0'], 
+           st.secrets['coef_path1'], 
+           st.secrets['coef_path2'], 
+           st.secrets['coef_path3'], 
+           st.secrets['coef_path4'], 
+           st.secrets['coef_path5']]
+
+indi_path=[st.secrets['indi_path0'], 
+           st.secrets['indi_path1'], 
+           st.secrets['indi_path2'], 
+           st.secrets['indi_path3'], 
+           st.secrets['indi_path4'], 
+           st.secrets['indi_path5']]
+
+conn = st.connection("gsheets", type=GSheetsConnection)
+
 @st.cache_data
-def load_data(uploaded_file):
-    data = pd.read_csv(uploaded_file)
+def load_data(path_list):
+    dfs = {}
+    
+    i = 0
+    for df in path_list:
+        dfs[i] = conn.read(spreadsheet=df)
+        i +=1
+    data = pd.concat(dfs).reset_index(drop=True)
     return data
 
-coef = load_data(st.file_uploader("Choose a file (coef)"))
-indi = load_data(st.file_uploader("Choose a file (indi)"))
 
+coef = load_data(coef_path)
+indi = load_data(indi_path)
+
+
+coef["sec_"] = coef["sec_"].str.replace(',','.')
+coef["sec_"] = coef["sec_"].astype(float)
+coef["from_sector"] = coef["from_sector"].astype(int)
+coef["to_sector"] = coef["to_sector"].astype(int)
+coef["year"] = coef["year"].astype(int)
 
 
 indi["year"] = indi["Year"]
