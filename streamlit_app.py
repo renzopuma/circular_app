@@ -3,23 +3,27 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from streamlit_gsheets import GSheetsConnection
+
 st.set_page_config(layout="wide")
 # Treatment
 st.title("Dashboard")
 st.markdown("Circular economy v2")
-st.write(st.secrets["indi_path"])
+conn = st.connection("gsheets", type=GSheetsConnection)
+
 
 @st.cache_data
-def load_data(path):
-    data = pd.read_csv(path)
+def load_data(uploaded_file):
+    data = pd.read_csv(uploaded_file)
     return data
 
+coef = load_data(st.file_uploader("Choose a file (coef)"))
+indi = load_data(st.file_uploader("Choose a file (indi)"))
 
-##Load data
 
-coef = load_data(st.secrets["coef_path"])
-indi = load_data(st.secrets["indi_path"])
+
 indi["year"] = indi["Year"]
+
 
 #Apply labels
 
@@ -368,13 +372,13 @@ net = ["c1", "c2", "c3"]
 nlb = ["s", "t"]
 
 
+
 df_sk1 = coef_c[["code_country", "year", "from_sector", "to_sector", "sec_"]]
 df_sk2 = coef_b[["code_country", "year", "from_sector", "to_sector", "sec_"]]
 
 
 edges_c, nodes_c = sankey_db(df_sk1, indi_c, "c")
 edges_b, nodes_b = sankey_db(df_sk2, indi_b, "b")
-
 
 st.plotly_chart(sankey(edges_c, nodes_c, selected_ctry[0]))
 st.plotly_chart(sankey(edges_b, nodes_b, "Benchmark"))
