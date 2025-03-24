@@ -7,7 +7,7 @@ st.set_page_config(layout="wide")
 # Treatment
 st.title("Dashboard")
 st.markdown("Circular economy v2")
-
+st.write(st.secrets["indi_path"])
 
 @st.cache_data
 def load_data(path):
@@ -16,8 +16,9 @@ def load_data(path):
 
 
 ##Load data
-coef = load_data("./data/io_eora_circular_expanded.csv")
-indi = load_data("./data/indicators_expanded.csv")
+
+coef = load_data(st.secrets["coef_path"])
+indi = load_data(st.secrets["indi_path"])
 indi["year"] = indi["Year"]
 
 #Apply labels
