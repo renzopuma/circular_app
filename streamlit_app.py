@@ -3,13 +3,12 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from streamlit_gsheets import GSheetsConnection
 
 st.set_page_config(layout="wide")
 # Treatment
 st.title("Dashboard")
 st.markdown("Circular economy v2")
-conn = st.connection("gsheets", type=GSheetsConnection)
+
 
 
 @st.cache_data
