@@ -47,11 +47,6 @@ coef = load_data(coef_path)
 indi = load_data(indi_path)
 
 
-coef["sec_"] = coef["sec_"].str.replace(',','.')
-coef["sec_"] = coef["sec_"].astype(float)
-coef["from_sector"] = coef["from_sector"].astype(int)
-coef["to_sector"] = coef["to_sector"].astype(int)
-coef["year"] = coef["year"].astype(int)
 
 
 indi["year"] = indi["Year"]
