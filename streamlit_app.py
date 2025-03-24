@@ -220,7 +220,8 @@ def sankey(edges, net_lbl, c):
         # Update our title, set font to 36px, bluesteel colour, and make it bold
         title="<span style='font-size:36px;color:steelblue;'><b>" + c + "</b></span>",
         font=dict(size=10, color="white"),
-        paper_bgcolor="#F8F8ff",
+        paper_bgcolor= "rgba(50, 0, 0, 0)",
+        height = 900
     )
     return fig
 
@@ -257,7 +258,7 @@ def bgrapf_sector(df_bench, df_country, var, ctry):
 
 # Main design
 y1 = st.slider(
-    "Select a range of values",
+    "Select a range of years",
     year_list[0],
     year_list[len(year_list) - 1],
     (year_list[0], year_list[0]),
@@ -328,41 +329,63 @@ indi_fb = indi_bench(indi_b.copy(), varl + varc)
 
 container1 = st.container()
 with container1:
+    st.markdown("Select IO variable")
     cont1 = st.columns(3)
     with cont1[0]:
-        io_var1 = st.selectbox("Select IO variable", varl, 0)
+        io_var1 = st.selectbox("", varl, 0)
         st.plotly_chart(bgrapf_sector(indi_fb, indi_c, io_var1, selected_ctry[0]))
     with cont1[1]:
-        io_var2 = st.selectbox("Select IO variable", varl, 1)
+        io_var2 = st.selectbox("", varl, 1)
         st.plotly_chart(bgrapf_sector(indi_fb, indi_c, io_var2, selected_ctry[0]))
     with cont1[2]:
-        io_var3 = st.selectbox("Select IO variable", varl, 2)
+        io_var3 = st.selectbox("", varl, 2)
         st.plotly_chart(bgrapf_sector(indi_fb, indi_c, io_var3, selected_ctry[0]))
+
+
+container2 = st.container()
+with container2:
+    st.markdown("Select circular variable")
+    cont2 = st.columns(3)
+    with cont2[0]:
+        c_var1 = st.selectbox("", varc, 0)
+        st.plotly_chart(bgrapf_sector(indi_fb, indi_c, c_var1, selected_ctry[0]))
+    with cont2[1]:
+        c_var2 = st.selectbox("", varc, 1)
+        st.plotly_chart(bgrapf_sector(indi_fb, indi_c, c_var2, selected_ctry[0]))
+    with cont2[2]:
+        c_var3 = st.selectbox("", varc, 2)
+        st.plotly_chart(bgrapf_sector(indi_fb, indi_c, c_var3, selected_ctry[0]))
 
 
 
 
 # Bar graph
-
-
-
-
-c_var = st.selectbox("Select circular variable", varc, 1)
-
-st.plotly_chart(bgrapf_sector(indi_fb, indi_c, c_var, selected_ctry[0]))
-
-st.dataframe(indi_c[id_codes + vartxt].reset_index(drop=True).set_index('sector'))
+l1 = id_codes + vartxt
+l1.remove('code_country')
+container3 = st.container(height=400)
+with container3:
+    st.markdown("Select relevant sectors")
+    
+    rel_sector = st.multiselect("", sector_list, sector_list[:2])
+    st.dataframe(indi_c[l1][indi_c["sector"].isin(rel_sector)].reset_index(drop=True).set_index('sector'))
 
 
 var_list = ["CE type", "Flow/Costs of Production", "Local Mkt", "sector"]
-sel_c1 = st.selectbox("Select a category for level 1", var_list, 3)
-sel_c2 = st.selectbox("Select a category for level 2", var_list, 0)
-sel_c3 = st.selectbox("Select a category for level 3", var_list, 2)
-sel_c4 = st.selectbox("Select a category for level 4", var_list, 3)
+
+container4 = st.container(height=1020)
+with container4:
+    cont4a = st.columns(4)
+    with cont4a[0]:
+        sel_c1 = st.selectbox("Select a category for level 1", var_list, 3)
+    with cont4a[1]:
+        sel_c2 = st.selectbox("Select a category for level 2", var_list, 0)
+    with cont4a[2]:
+        sel_c3 = st.selectbox("Select a category for level 3", var_list, 2)
+    with cont4a[3]:
+        sel_c4 = st.selectbox("Select a category for level 4", var_list, 3)
 
 
 coef_c = filter(coef, "c")
-
 
 coef_b = filter(coef, "b")
 
@@ -379,13 +402,17 @@ df_sk2 = coef_b[["code_country", "year", "from_sector", "to_sector", "sec_"]]
 edges_c, nodes_c = sankey_db(df_sk1, indi_c, "c")
 edges_b, nodes_b = sankey_db(df_sk2, indi_b, "b")
 
-st.plotly_chart(sankey(edges_c, nodes_c, selected_ctry[0]))
-st.plotly_chart(sankey(edges_b, nodes_b, "Benchmark"))
+with container4:
+    cont4b = st.columns(2)
+    with cont4b[0]:
+        st.plotly_chart(sankey(edges_c, nodes_c, selected_ctry[0]))
+    with cont4b[1]:
+        st.plotly_chart(sankey(edges_b, nodes_b, "Benchmark"))
+
 
 
 ###For comparasion
-st.markdown("comparasion")
+
 
 
 ##Select sector
-rel_sector = st.multiselect("Select relevant sectors", sector_list, sector_list[:2])
