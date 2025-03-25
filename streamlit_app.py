@@ -47,8 +47,6 @@ coef = load_data(coef_path)
 indi = load_data(indi_path)
 
 
-
-
 indi["year"] = indi["Year"]
 
 
@@ -247,40 +245,35 @@ def sankey(edges, net_lbl, c):
         hovermode="x",
         # Update our title, set font to 36px, bluesteel colour, and make it bold
         title="<span style='font-size:36px;color:steelblue;'><b>" + c + "</b></span>",
-        font=dict(size=10, color="white"),
-        paper_bgcolor= "rgba(50, 0, 0, 0)",
+        #font=dict(size=10, color="white"),
+        #paper_bgcolor= "rgba(50, 0, 0, 0)",
         height = 900
     )
     return fig
 
-
 def bgrapf_sector(df_bench, df_country, var, ctry):
-    fig = make_subplots(
-        rows=1,
-        cols=1,
-        specs=[[{}]],
-        shared_xaxes=False,
-        shared_yaxes=True,
-        vertical_spacing=0.001,
-    )
-
-    fig.append_trace(
+    fig = go.Figure()
+    fig.add_trace(
         go.Bar(
-            x=df_country["sector"], y=df_country[var], name=ctry, marker_color="#277935"
-        ),
-        1,
-        1,
-    )
+            x=df_country["sector"], 
+            y=df_country[var], 
+            name=ctry, 
+            marker_color="#590A27"
+        ))
 
-    fig.append_trace(
+    fig.add_trace(
         go.Bar(
-            x=df_bench["sector"], y=df_bench[var], name="BENCH", marker_color="#702035"
-        ),
-        1,
-        1,
+            x=df_bench["sector"], 
+            y=df_bench[var], 
+            name="BENCH", 
+            marker_color="#BF8173"
+        ))
+    fig.update_layout(
+        height = 600
     )
-
     return fig
+
+
 
 
 
@@ -305,9 +298,63 @@ with rws1[0]:
 ##Select bench
 with rws1[1]:
     bench = st.multiselect("Select benchmark", country_list, country_list[:2])
+
+
 id_codes = ["code_country", "year", "sector"]
 
-varl = ["output_exp", "va_exp", "kbs", "l", "expo_exp", "imports", "krent"]
+varl_dic={'Total output':"output_exp", 
+          'Total value added':"va_exp", 
+          'Centrality':'kbs', 
+          'Labor rents': 'l', 
+          'Capital rents': 'k',
+          'Total exports':'expo_exp',
+          'Total imports': 'imports', 
+          'Ratio capital rents-output':'krent'}
+
+varl_m = ['Total output', 
+         'Total value added', 
+         'Centrality', 
+         'Labor rents', 
+         'Capital rents',
+         'Total exports',
+         'Total imports', 
+         'Ratio capital rents-output']
+
+varl = ["output_exp", "va_exp", "kbs", "l", 'k', "expo_exp", "imports", "krent"]
+
+
+
+varc_dic =  {'Recycling input rate':'rir',
+            'Maintenance & Repair input rate':'reir',
+            'Virgin material dependency: Minning':'vmd_mining',
+            'Virgin material dependency: Petrochemicals':'vmd_petro',
+            'Virgin material dependency: Chemicals':'vmd_chem',
+            'Virgin material dependency: Basic metals':'vmd_metal',
+            'Virgin material dependency: Total':'vmd',
+            'Waste output rate':'wor',
+            'Cross sector material utilization: Manufacture':'csmu_manu',
+            'Cross sector material utilization: Food':'csmu_food',
+            'Cross sector material utilization: Textiles':'csmu_text',
+            'Cross sector material utilization: Computer electronics':'csmu_cpuelec',
+            'Cross sector material utilization: Electrical equipment':'csmu_eleceq',
+            'Cross sector material utilization: Machinery':'csmu_mcheq',
+            'Cross sector material utilization: Total':'csmu'}
+
+varc_m =  ['Recycling input rate',
+           'Maintenance & Repair input rate',
+           'Virgin material dependency: Minning',
+           'Virgin material dependency: Petrochemicals',
+           'Virgin material dependency: Chemicals',
+           'Virgin material dependency: Basic metals',
+           'Virgin material dependency: Total',
+           'Waste output rate',
+           'Cross sector material utilization: Manufacture',
+           'Cross sector material utilization: Food',
+           'Cross sector material utilization: Textiles',
+           'Cross sector material utilization: Computer electronics',
+           'Cross sector material utilization: Electrical equipment',
+           'Cross sector material utilization: Machinery',
+           'Cross sector material utilization: Total']
 
 
 varc = [
@@ -360,14 +407,14 @@ with container1:
     st.markdown("Select IO variable")
     cont1 = st.columns(3)
     with cont1[0]:
-        io_var1 = st.selectbox("", varl, 0)
-        st.plotly_chart(bgrapf_sector(indi_fb, indi_c, io_var1, selected_ctry[0]))
+        io_var1 = st.selectbox("", varl_m, 0)
+        st.plotly_chart(bgrapf_sector(indi_fb, indi_c, varl_dic[io_var1], selected_ctry[0]), key="cht0")
     with cont1[1]:
-        io_var2 = st.selectbox("", varl, 1)
-        st.plotly_chart(bgrapf_sector(indi_fb, indi_c, io_var2, selected_ctry[0]))
+        io_var2 = st.selectbox("", varl_m, 1)
+        st.plotly_chart(bgrapf_sector(indi_fb, indi_c, varl_dic[io_var2], selected_ctry[0]), key="cht1")
     with cont1[2]:
-        io_var3 = st.selectbox("", varl, 2)
-        st.plotly_chart(bgrapf_sector(indi_fb, indi_c, io_var3, selected_ctry[0]))
+        io_var3 = st.selectbox("", varl_m, 2)
+        st.plotly_chart(bgrapf_sector(indi_fb, indi_c, varl_dic[io_var3], selected_ctry[0]), key="cht2")
 
 
 container2 = st.container()
@@ -375,14 +422,14 @@ with container2:
     st.markdown("Select circular variable")
     cont2 = st.columns(3)
     with cont2[0]:
-        c_var1 = st.selectbox("", varc, 0)
-        st.plotly_chart(bgrapf_sector(indi_fb, indi_c, c_var1, selected_ctry[0]))
+        c_var1 = st.selectbox("", varc_m, 0)
+        st.plotly_chart(bgrapf_sector(indi_fb, indi_c, varc_dic[c_var1], selected_ctry[0]), key="cht3")
     with cont2[1]:
-        c_var2 = st.selectbox("", varc, 1)
-        st.plotly_chart(bgrapf_sector(indi_fb, indi_c, c_var2, selected_ctry[0]))
+        c_var2 = st.selectbox("", varc_m, 1)
+        st.plotly_chart(bgrapf_sector(indi_fb, indi_c, varc_dic[c_var2], selected_ctry[0]), key="cht4")
     with cont2[2]:
-        c_var3 = st.selectbox("", varc, 2)
-        st.plotly_chart(bgrapf_sector(indi_fb, indi_c, c_var3, selected_ctry[0]))
+        c_var3 = st.selectbox("", varc_m, 2)
+        st.plotly_chart(bgrapf_sector(indi_fb, indi_c, varc_dic[c_var3], selected_ctry[0]), key="cht5")
 
 
 
@@ -433,9 +480,9 @@ edges_b, nodes_b = sankey_db(df_sk2, indi_b, "b")
 with container4:
     cont4b = st.columns(2)
     with cont4b[0]:
-        st.plotly_chart(sankey(edges_c, nodes_c, selected_ctry[0]))
+        st.plotly_chart(sankey(edges_c, nodes_c, selected_ctry[0]), key="cht6")
     with cont4b[1]:
-        st.plotly_chart(sankey(edges_b, nodes_b, "Benchmark"))
+        st.plotly_chart(sankey(edges_b, nodes_b, "Benchmark"), key="cht7")
 
 
 
