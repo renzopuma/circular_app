@@ -190,14 +190,28 @@ def edges_creation(df, indi, source_cat, target_cat, s_level, t_level, type):
     return df
 
 
-def sankey_db(df, indi, type):
+def sankey_db(df, indi, sel, type, rel):
     ntw = {name: pd.DataFrame() for name in net}
     net_lbl = {name: pd.DataFrame() for name in nlb}
 
     # edges
-    ntw["c1"] = edges_creation(df, indi, sel_c1, sel_c2, "c1", "c2", type)
-    ntw["c2"] = edges_creation(df, indi, sel_c2, sel_c3, "c2", "c3", type)
-    ntw["c3"] = edges_creation(df, indi, sel_c3, sel_c4, "c3", "c4", type)
+    ntw["c1"] = edges_creation(df, indi, sel[0], sel[1], "c1", "c2", type)
+    ntw["c2"] = edges_creation(df, indi, sel[1], sel[2], "c2", "c3", type)
+    ntw["c3"] = edges_creation(df, indi, sel[2], sel[3], "c3", "c4", type)
+    
+    if rel[0] != 'all':
+        ntw['c1'] = ntw['c1'][ntw['c1']['source_label']==rel[0]]
+    
+    if rel[1] != 'all':
+        ntw['c1'] = ntw['c1'][ntw['c1']['target_label']==rel[1]]
+        ntw['c2'] = ntw['c2'][ntw['c2']['source_label']==rel[1]]
+        
+    if rel[2] != 'all':
+        ntw['c2'] = ntw['c2'][ntw['c2']['target_label']==rel[2]]
+        ntw['c3'] = ntw['c3'][ntw['c3']['source_label']==rel[2]]
+    
+    if rel[3] != 'all':
+        ntw['c3'] = ntw['c3'][ntw['c3']['target_label']==rel[3]]
 
     edges = pd.concat(ntw).reset_index()
 
@@ -251,20 +265,20 @@ def sankey(edges, net_lbl, c):
     )
     return fig
 
-def bgrapf_sector(df_bench, df_country, var, ctry):
+def bgrapf_sector(df_bench, df_country, varx, vary, ctry):
     fig = go.Figure()
     fig.add_trace(
         go.Bar(
-            x=df_country["sector"], 
-            y=df_country[var], 
+            x=df_country[varx], 
+            y=df_country[vary], 
             name=ctry, 
             marker_color="#590A27"
         ))
 
     fig.add_trace(
         go.Bar(
-            x=df_bench["sector"], 
-            y=df_bench[var], 
+            x=df_bench[varx], 
+            y=df_bench[vary], 
             name="BENCH", 
             marker_color="#BF8173"
         ))
@@ -274,7 +288,23 @@ def bgrapf_sector(df_bench, df_country, var, ctry):
     return fig
 
 
+def stck_bar(df, varx, vary, varlist):
+    fig = go.Figure()
+    for i in range(len(varlist)):
+        fig.add_trace(
+            go.Bar(name=varlist[i], 
+                    x=df[varx], 
+                    y=df[vary[i]]
+                    )
+        )
 
+    #data=[
+    #go.Bar(name=varlist[0], x=df[varx], y=df[vary[0]]),
+    #go.Bar(name=varlist[1], x=df[varx], y=df[vary[1]]),
+    #go.Bar(name=varlist[2], x=df[varx], y=df[vary[2]])])
+
+    fig.update_layout(barmode='stack')
+    return fig
 
 
 # Main design
@@ -309,7 +339,8 @@ varl_dic={'Total output':"output_exp",
           'Capital rents': 'k',
           'Total exports':'expo_exp',
           'Total imports': 'imports', 
-          'Ratio capital rents-output':'krent'}
+          'Ratio capital rents-output':'krent',
+          'Spillover (priorized indirect connections)': "sp2"}
 
 varl_m = ['Total output', 
          'Total value added', 
@@ -318,9 +349,10 @@ varl_m = ['Total output',
          'Capital rents',
          'Total exports',
          'Total imports', 
-         'Ratio capital rents-output']
+         'Ratio capital rents-output', 
+         'Spillover (priorized indirect connections)']
 
-varl = ["output_exp", "va_exp", "kbs", "l", 'k', "expo_exp", "imports", "krent"]
+varl = ["output_exp", "va_exp", "kbs", "l", 'k', "expo_exp", "imports", "krent", "sp2", 'expend_clsum', 'demand_exp', 'spill_rwsum','hhi_ups', 'hhi_dws' ]
 
 
 
@@ -385,11 +417,11 @@ vartxt = ['Flow/Costs of Production',
 
 # Create the initial bar chart for the selected variable
 
-def indi_bench(df, varlist):
+def collapser(df, varlist):
     df["code_country"] = "Benchmark"
     df = (
         df[id_codes + varlist]
-        .groupby(["code_country", "sector"])
+        .groupby(["code_country", "sector", 'year'])
         .median()
         .reset_index()
     )
@@ -397,96 +429,372 @@ def indi_bench(df, varlist):
 indi_c = filter(indi, "c")
 indi_b = filter(indi, "b")
 
-indi_fb = indi_bench(indi_b.copy(), varl + varc)
+indi_fb = collapser(indi_b.copy(), varl + varc)
 
 
 # --- Primer cajon ---
 
+rel_sector = st.selectbox("Select relevant sector", sector_list, 1)
+
+outp_c = indi_c['output_exp'][(indi_c['sector']==rel_sector) & (indi_c['year']==selected_year[-1])].iloc[0]
+outp_b = indi_fb['output_exp'][(indi_fb['sector']==rel_sector) & (indi_fb['year']==selected_year[-1])].iloc[0]
+
+outp_c2 = indi_c['output_exp'][(indi_c['sector']==rel_sector) & (indi_c['year']==selected_year[-2])].iloc[0]
+outp_b2 = indi_fb['output_exp'][(indi_fb['sector']==rel_sector) & (indi_fb['year']==selected_year[-2])].iloc[0]
+
+outp_c_delta = ((outp_c/outp_c2)-1)*100
+outp_b_delta = ((outp_b/outp_b2)-1)*100
+
+va_c = ((indi_c['va_exp'][(indi_c['sector']==rel_sector) & (indi_c['year']==selected_year[-1])].iloc[0])/outp_c)*100
+va_b = ((indi_fb['va_exp'][(indi_fb['sector']==rel_sector) & (indi_fb['year']==selected_year[-1])].iloc[0])/outp_b)*100
+
+va_c2 = ((indi_c['va_exp'][(indi_c['sector']==rel_sector) & (indi_c['year']==selected_year[-2])].iloc[0])/outp_c2)*100
+va_b2 = ((indi_fb['va_exp'][(indi_fb['sector']==rel_sector) & (indi_fb['year']==selected_year[-2])].iloc[0])/outp_b2)*100
+
+va_c_delta = ((va_c/va_c2)-1)*100
+va_b_delta = ((va_b/va_b2)-1)*100
+
+exp_c = ((indi_c['expend_clsum'][(indi_c['sector']==rel_sector) & (indi_c['year']==selected_year[-1])].iloc[0])/outp_c)*100
+exp_b = ((indi_fb['expend_clsum'][(indi_fb['sector']==rel_sector) & (indi_fb['year']==selected_year[-1])].iloc[0])/outp_b)*100
+
+exp_c2 = ((indi_c['expend_clsum'][(indi_c['sector']==rel_sector) & (indi_c['year']==selected_year[-2])].iloc[0])/outp_c2)*100
+exp_b2 = ((indi_fb['expend_clsum'][(indi_fb['sector']==rel_sector) & (indi_fb['year']==selected_year[-2])].iloc[0])/outp_b2)*100
+
+exp_c_delta = ((exp_c/exp_c2)-1)*100
+exp_b_delta = ((exp_b/exp_b2)-1)*100
+
+
+
+
 container1 = st.container()
 with container1:
-    st.markdown("Select IO variable")
+    st.markdown("Overall Market size")
     cont1 = st.columns(3)
     with cont1[0]:
-        io_var1 = st.selectbox("", varl_m, 0)
-        st.plotly_chart(bgrapf_sector(indi_fb, indi_c, varl_dic[io_var1], selected_ctry[0]), key="cht0")
+        st.markdown("Total output of selected sector")
+        io_var1 ='output_exp'
+        st.plotly_chart(bgrapf_sector(indi_fb[indi_fb['sector']==rel_sector], 
+                                      indi_c[indi_c['sector']==rel_sector], 
+                                      "year",
+                                      io_var1, 
+                                      selected_ctry[0]), key="cht0")
+        
+        st.metric(label=f'{selected_ctry[0]} - {selected_year[-1]}', 
+                    value=f'${outp_c:.2f}K', 
+                    delta=f'{outp_c_delta:.2f}%', 
+                    border=True) 
+        st.metric(label=f'BENCH - {selected_year[-1]}', 
+                    value=f'${outp_b:.2f}K', 
+                    delta=f'{outp_b_delta:.2f}%', 
+                    border=True) 
+        
+        
     with cont1[1]:
-        io_var2 = st.selectbox("", varl_m, 1)
-        st.plotly_chart(bgrapf_sector(indi_fb, indi_c, varl_dic[io_var2], selected_ctry[0]), key="cht1")
+        st.markdown("Total value added of selected sector")
+        io_var2 ='va_exp'
+        st.plotly_chart(bgrapf_sector(indi_fb[indi_fb['sector']==rel_sector], 
+                                      indi_c[indi_c['sector']==rel_sector],  
+                                      "year",
+                                      io_var2, 
+                                      selected_ctry[0]), key="cht1")
+        
+        st.metric(label=f'Value added (% of output) {selected_ctry[0]} - {selected_year[-1]}', 
+                    value=f'{va_c:.2f}%', 
+                    delta=f'{va_c_delta:.2f}%', 
+                    border=True) 
+        st.metric(label=f'Value added (% of output) BENCH - {selected_year[-1]}', 
+                    value=f'{va_b:.2f}%', 
+                    delta=f'{va_b_delta:.2f}%', 
+                    border=True) 
+        
     with cont1[2]:
-        io_var3 = st.selectbox("", varl_m, 2)
-        st.plotly_chart(bgrapf_sector(indi_fb, indi_c, varl_dic[io_var3], selected_ctry[0]), key="cht2")
+        st.markdown("Total expenditures of selected sector")
+        io_var3 ='expend_clsum'
+        st.plotly_chart(bgrapf_sector(indi_fb[indi_fb['sector']==rel_sector], 
+                                      indi_c[indi_c['sector']==rel_sector], 
+                                      "year",
+                                      io_var3, 
+                                      selected_ctry[0]), key="cht2")
+        st.metric(label=f'Expenditures (% of output) {selected_ctry[0]} - {selected_year[-1]}', 
+                    value=f'{exp_c:.2f}%', 
+                    delta=f'{exp_c_delta:.2f}%', 
+                    border=True) 
+        st.metric(label=f'Expenditures (% of output) BENCH - {selected_year[-1]}', 
+                    value=f'{exp_b:.2f}%', 
+                    delta=f'{exp_b_delta:.2f}%', 
+                    border=True) 
+
+
+
+
+# --- Segundo cajon ---
+
+#Calcular cajones de metricas
+
+
+
+
+expo_c = ((indi_c['expo_exp'][(indi_c['sector']==rel_sector) & (indi_c['year']==selected_year[-1])].iloc[0])/outp_c)*100
+expo_b = ((indi_fb['expo_exp'][(indi_fb['sector']==rel_sector) & (indi_fb['year']==selected_year[-1])].iloc[0])/outp_b)*100
+
+expo_c2 = ((indi_c['expo_exp'][(indi_c['sector']==rel_sector) & (indi_c['year']==selected_year[-2])].iloc[0])/outp_c2)*100
+expo_b2 = ((indi_fb['expo_exp'][(indi_fb['sector']==rel_sector) & (indi_fb['year']==selected_year[-2])].iloc[0])/outp_b2)*100
+
+expo_c_delta = ((expo_c/expo_c2)-1)*100
+expo_b_delta = ((expo_b/expo_b2)-1)*100
+
+intc_c = ((indi_c['spill_rwsum'][(indi_c['sector']==rel_sector) & (indi_c['year']==selected_year[-1])].iloc[0])/outp_c)*100
+intc_b = ((indi_fb['spill_rwsum'][(indi_fb['sector']==rel_sector) & (indi_fb['year']==selected_year[-1])].iloc[0])/outp_b)*100
+
+intc_c2 = ((indi_c['spill_rwsum'][(indi_c['sector']==rel_sector) & (indi_c['year']==selected_year[-2])].iloc[0])/outp_c2)*100
+intc_b2 = ((indi_fb['spill_rwsum'][(indi_fb['sector']==rel_sector) & (indi_fb['year']==selected_year[-2])].iloc[0])/outp_b2)*100
+
+intc_c_delta = ((intc_c/intc_c2)-1)*100
+intc_b_delta = ((intc_b/intc_b2)-1)*100
+
+
+demd_c = ((indi_c['demand_exp'][(indi_c['sector']==rel_sector) & (indi_c['year']==selected_year[-1])].iloc[0])/outp_c)*100
+demd_b = ((indi_fb['demand_exp'][(indi_fb['sector']==rel_sector) & (indi_fb['year']==selected_year[-1])].iloc[0])/outp_b)*100
+
+demd_c2 = ((indi_c['demand_exp'][(indi_c['sector']==rel_sector) & (indi_c['year']==selected_year[-2])].iloc[0])/outp_c2)*100
+demd_b2 = ((indi_fb['demand_exp'][(indi_fb['sector']==rel_sector) & (indi_fb['year']==selected_year[-2])].iloc[0])/outp_b2)*100
+
+demd_c_delta = ((demd_c/demd_c2)-1)*100
+demd_b_delta = ((demd_b/demd_b2)-1)*100
+
+
+#Extraer ouput y calcular porcentajes
 
 
 container2 = st.container()
 with container2:
-    st.markdown("Select circular variable")
-    cont2 = st.columns(3)
+    st.markdown("Domestic use vs exports")
+    var_tot = ['spill_rwsum', 'demand_exp', 'expo_exp']
+    var_lab = ['Internal consumption', 'Demand of final users', 'Exports']
+    ##Corregir demanda de usuarios finales
+    #stck_bar(df, varx, vary, varlist)
+    cont2 = st.columns(2)
     with cont2[0]:
-        c_var1 = st.selectbox("", varc_m, 0)
-        st.plotly_chart(bgrapf_sector(indi_fb, indi_c, varc_dic[c_var1], selected_ctry[0]), key="cht3")
+        st.markdown(selected_ctry[0])
+        st.plotly_chart(stck_bar(indi_c[indi_c['sector']==rel_sector], 
+                                 'year', 
+                                 var_tot, 
+                                 var_lab), key="cht3")
+        st.markdown("% total output")
+        cont2a = st.columns(3)
+        
+        with cont2a[0]:
+            st.metric(label=f'Exports - {selected_year[-1]}', 
+                    value=f'{expo_c:.2f}%', 
+                    delta=f'{expo_c_delta:.2f}%', 
+                    border=True)   
+        with cont2a[1]:
+            st.metric(label=f'Demand of final users - {selected_year[-1]}', 
+                    value=f'{demd_c:.2f}%', 
+                    delta=f'{demd_c_delta:.2f}%', 
+                    border=True)
+        with cont2a[2]:
+            st.metric(label=f'Internal consumption - {selected_year[-1]}', 
+                    value=f'{intc_c:.2f}%', 
+                    delta=f'{intc_c_delta:.2f}%', 
+                    border=True)
+        
+        
+        
     with cont2[1]:
-        c_var2 = st.selectbox("", varc_m, 1)
-        st.plotly_chart(bgrapf_sector(indi_fb, indi_c, varc_dic[c_var2], selected_ctry[0]), key="cht4")
-    with cont2[2]:
-        c_var3 = st.selectbox("", varc_m, 2)
-        st.plotly_chart(bgrapf_sector(indi_fb, indi_c, varc_dic[c_var3], selected_ctry[0]), key="cht5")
+        st.markdown("BENCH")
+        st.plotly_chart(stck_bar(indi_fb[indi_fb['sector']==rel_sector], 
+                                 'year', 
+                                 var_tot, 
+                                 var_lab), key="cht4")
+        st.markdown("% total output")
+        cont2b = st.columns(3)
+        with cont2b[0]:
+            st.metric(label=f'Exports - {selected_year[-1]}', 
+                    value=f'{expo_b:.2f}%', 
+                    delta=f'{expo_b_delta:.2f}%', 
+                    border=True)   
+        with cont2b[1]:
+            st.metric(label=f'Demand of final users - {selected_year[-1]}', 
+                    value=f'{demd_b:.2f}%', 
+                    delta=f'{demd_b_delta:.2f}%', 
+                    border=True)
+        with cont2b[2]:
+            st.metric(label=f'Internal consumption - {selected_year[-1]}', 
+                    value=f'{intc_b:.2f}%', 
+                    delta=f'{intc_b_delta:.2f}%', 
+                    border=True)
 
 
 
 
-# Bar graph
-l1 = id_codes + vartxt
-l1.remove('code_country')
-container3 = st.container(height=400)
-with container3:
-    st.markdown("Select relevant sectors")
-    
-    rel_sector = st.multiselect("", sector_list, sector_list[:2])
-    st.dataframe(indi_c[l1][indi_c["sector"].isin(rel_sector)].reset_index(drop=True).set_index('sector'))
 
 
-var_list = ["CE type", "Flow/Costs of Production", "Local Mkt", "sector"]
-
-container4 = st.container(height=1020)
-with container4:
-    cont4a = st.columns(4)
-    with cont4a[0]:
-        sel_c1 = st.selectbox("Select a category for level 1", var_list, 3)
-    with cont4a[1]:
-        sel_c2 = st.selectbox("Select a category for level 2", var_list, 0)
-    with cont4a[2]:
-        sel_c3 = st.selectbox("Select a category for level 3", var_list, 2)
-    with cont4a[3]:
-        sel_c4 = st.selectbox("Select a category for level 4", var_list, 3)
 
 
+# --- Tercer cajon ---
+
+
+st.markdown("Retained in the economy vs wasted")
+
+
+container3 = st.container(height=1100)
+
+sel_c1 = "Local Mkt"
+sel_c2 = "sector"
+sel_c3 = "CE type"
+sel_c4 = "sector"
+
+sel = [sel_c1, sel_c2, sel_c3, sel_c4]
 coef_c = filter(coef, "c")
-
 coef_b = filter(coef, "b")
-
-
 net = ["c1", "c2", "c3"]
 nlb = ["s", "t"]
 
-
+fil = ['all', rel_sector, 'R-basic', 'all']
 
 df_sk1 = coef_c[["code_country", "year", "from_sector", "to_sector", "sec_"]]
 df_sk2 = coef_b[["code_country", "year", "from_sector", "to_sector", "sec_"]]
 
+edges_c, nodes_c = sankey_db(df_sk1, indi_c, sel, "c", fil)
+edges_b, nodes_b = sankey_db(df_sk2, indi_b, sel, "b", fil)
 
-edges_c, nodes_c = sankey_db(df_sk1, indi_c, "c")
-edges_b, nodes_b = sankey_db(df_sk2, indi_b, "b")
 
+wor_c = indi_c['wor'][(indi_c['sector']==rel_sector) & (indi_c['year']==selected_year[-1])].iloc[0]*100
+wor_b = indi_fb['wor'][(indi_fb['sector']==rel_sector) & (indi_fb['year']==selected_year[-1])].iloc[0]*100
+
+wor_c2 = indi_c['wor'][(indi_c['sector']==rel_sector) & (indi_c['year']==selected_year[-2])].iloc[0]*100
+wor_b2 = indi_fb['wor'][(indi_fb['sector']==rel_sector) & (indi_fb['year']==selected_year[-2])].iloc[0]*100
+
+wor_c_delta = ((wor_c/wor_c2)-1)*100
+wor_b_delta = ((wor_b/wor_b2)-1)*100
+
+with container3:
+    #st.dataframe(indi_c['wor'][(indi_c['sector']==rel_sector)])
+    cont3 = st.columns(2)
+    with cont3[0]:
+        st.plotly_chart(sankey(edges_c, nodes_c, selected_ctry[0]), key="cht5")
+        st.metric(label=f'Waste output rate {selected_year[-1]}', value=f'{wor_c:.3f}% of total', delta=f'{wor_c_delta:.3f}%', border=True)
+    with cont3[1]:
+        st.plotly_chart(sankey(edges_b, nodes_b, "Benchmark"), key="cht6")
+        st.metric(label=f'Waste output rate {selected_year[-1]}', value=f'{wor_b:.3f}% of total', delta=f'{wor_b_delta:.3f}%', border=True)
+
+
+#2 color on benchmark for connection
+
+
+# --- Cuarto cajon ---
+vmd_c = indi_c['vmd'][(indi_c['sector']==rel_sector) & (indi_c['year']==selected_year[-1])].iloc[0]*100
+vmd_b = indi_fb['vmd'][(indi_fb['sector']==rel_sector) & (indi_fb['year']==selected_year[-1])].iloc[0]*100
+
+vmd_c2 = indi_c['vmd'][(indi_c['sector']==rel_sector) & (indi_c['year']==selected_year[-2])].iloc[0]*100
+vmd_b2 = indi_fb['vmd'][(indi_fb['sector']==rel_sector) & (indi_fb['year']==selected_year[-2])].iloc[0]*100
+
+vmd_c_delta = ((vmd_c/vmd_c2)-1)*100
+vmd_b_delta = ((vmd_b/vmd_b2)-1)*100
+
+
+container4 = st.container()
 with container4:
-    cont4b = st.columns(2)
-    with cont4b[0]:
-        st.plotly_chart(sankey(edges_c, nodes_c, selected_ctry[0]), key="cht6")
-    with cont4b[1]:
-        st.plotly_chart(sankey(edges_b, nodes_b, "Benchmark"), key="cht7")
+    st.markdown("Use of virgin materials")
+    var_tot = ['vmd_mining', 'vmd_petro', 'vmd_chem', 'vmd_metal']
+    var_lab = ['VMD: Mining', 'VMD: Petroleum', 'VMD: Chemicals', 'VMD: Basic Metals']
+    ##Corregir demanda de usuarios finales
+    #stck_bar(df, varx, vary, varlist)
+    cont4 = st.columns(2)
+    with cont4[0]:
+        st.markdown(selected_ctry[0])
+        st.plotly_chart(stck_bar(indi_c[indi_c['sector']==rel_sector], 
+                                 'year', 
+                                 var_tot, 
+                                 var_lab), key="cht7")
+        st.metric(label=f'Virgin material dependence (VMD) {selected_year[-1]}', value=f'{vmd_c:.3f}% of total', delta=f'{vmd_c_delta:.3f}%', border=True)
+    with cont4[1]:
+        st.markdown("BENCH")
+        st.plotly_chart(stck_bar(indi_fb[indi_fb['sector']==rel_sector], 
+                                 'year', 
+                                 var_tot, 
+                                 var_lab), key="cht8")
+        st.metric(label=f'Virgin material dependence (VMD) {selected_year[-1]}', value=f'{vmd_b:.3f}% of total', delta=f'{vmd_b_delta:.3f}%', border=True)
 
 
 
-###For comparasion
+
+# --- Quinto cajon ---
+
+
+uhhi_c = indi_c['hhi_ups'][(indi_c['sector']==rel_sector) & (indi_c['year']==selected_year[-1])].iloc[0]
+uhhi_b = indi_fb['hhi_ups'][(indi_fb['sector']==rel_sector) & (indi_fb['year']==selected_year[-1])].iloc[0]
+
+uhhi_c2 = indi_c['hhi_ups'][(indi_c['sector']==rel_sector) & (indi_c['year']==selected_year[-2])].iloc[0]
+uhhi_b2 = indi_fb['hhi_ups'][(indi_fb['sector']==rel_sector) & (indi_fb['year']==selected_year[-2])].iloc[0]
+
+uhhi_c_delta = ((uhhi_c/uhhi_c2)-1)*100
+uhhi_b_delta = ((uhhi_b/uhhi_b2)-1)*100
+
+
+
+dhhi_c = indi_c['hhi_dws'][(indi_c['sector']==rel_sector) & (indi_c['year']==selected_year[-1])].iloc[0]
+dhhi_b = indi_fb['hhi_dws'][(indi_fb['sector']==rel_sector) & (indi_fb['year']==selected_year[-1])].iloc[0]
+
+dhhi_c2 = indi_c['hhi_dws'][(indi_c['sector']==rel_sector) & (indi_c['year']==selected_year[-2])].iloc[0]
+dhhi_b2 = indi_fb['hhi_dws'][(indi_fb['sector']==rel_sector) & (indi_fb['year']==selected_year[-2])].iloc[0]
+
+dhhi_c_delta = ((dhhi_c/dhhi_c2)-1)*100
+dhhi_b_delta = ((dhhi_b/dhhi_b2)-1)*100
+
+
+
+
+
+#Terminar de calcular el hhi para los cajones
+
+container5 = st.container()
+with container5:
+    st.markdown("Supply Chain concentration")
+    cont5 = st.columns(2)
+    with cont5[0]:
+        st.markdown("Concentration in upstream connections (HHI)")
+        io_var1 ='hhi_ups'
+        st.plotly_chart(bgrapf_sector(indi_fb[indi_fb['sector']==rel_sector], 
+                                      indi_c[indi_c['sector']==rel_sector], 
+                                      "year",
+                                      io_var1, 
+                                      selected_ctry[0]), key="cht9")
+        #st.markdown("Upstream concentration (HHI)")
+        st.metric(label=f'{selected_ctry[0]} - {selected_year[-1]}', 
+                  value=f'{uhhi_c:.4f}', 
+                  delta=f'{uhhi_c_delta:.3f}%', 
+                  delta_color="inverse",
+                  border=True)
+        st.metric(label=f'BENCH - {selected_year[-1]}', 
+                  value=f'{uhhi_b:.4f}', 
+                  delta=f'{uhhi_b_delta:.3f}%', 
+                  delta_color="inverse",
+                  border=True)
+    with cont5[1]:
+        st.markdown("Concentration in downstream connections (HHI)")
+        io_var1 ='hhi_dws'
+        st.plotly_chart(bgrapf_sector(indi_fb[indi_fb['sector']==rel_sector], 
+                                      indi_c[indi_c['sector']==rel_sector], 
+                                      "year",
+                                      io_var1, 
+                                      selected_ctry[0]), key="cht10")
+        #st.markdown("Downstream concentration (HHI)")
+        st.metric(label=f'{selected_ctry[0]} - {selected_year[-1]}', 
+                  value=f'{dhhi_c:.4f}', 
+                  delta=f'{dhhi_c_delta:.3f}%', 
+                  delta_color="inverse",
+                  border=True)
+        st.metric(label=f'BENCH - {selected_year[-1]}', 
+                  value=f'{dhhi_b:.4f}', 
+                  delta=f'{dhhi_b_delta:.3f}%', 
+                  delta_color="inverse",
+                  border=True)
+
+
+
+
 
 
 
