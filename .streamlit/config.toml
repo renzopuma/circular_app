@@ -1,5 +1,8 @@
+[server]
+runOnSave = true
+
 [theme]
-primaryColor = "#4D3F56"
-backgroundColor = "#738C89"
+primaryColor = "#8B738C"
+backgroundColor = "#4F5361"
 secondaryBackgroundColor = "#A2A633"
 textColor = "#FFFFFF"
