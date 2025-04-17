@@ -312,7 +312,7 @@ y1 = st.slider(
     "Select a range of years",
     year_list[0],
     year_list[len(year_list) - 1],
-    (year_list[0], year_list[0]),
+    (year_list[0], year_list[1]),
 )
 
 
